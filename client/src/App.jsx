@@ -5,6 +5,8 @@ import * as XLSX from 'xlsx'
 import SearchSidebar from './components/SearchSidebar.jsx'
 import ResultsTable from './components/ResultsTable.jsx'
 import Spinner from './components/Spinner.jsx'
+import { FileSearch } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 export default function App() {
   const [apiKey, setApiKey] = useState('');
@@ -21,57 +23,66 @@ export default function App() {
   const [action, setAction] = useState('new');
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('')
+  const [error, setError] = useState('');
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-  const handleSearch = async () => {
-    if (!apiKey) {
-      setError('API key is required')
-      return
-    }
-    setError('')
-    setLoading(true)
-    const params = { ...query }
-    if (action === 'continue' && userCursor) {
-      params.next = userCursor
-    }
+const handleSearch = async () => {
+  if (!apiKey) {
+    setError('API key is required');
+    return;
+  }
 
-    try {
-      const res = await axios.get(`${API_BASE}/leads`, {
-        headers: {
-          'x-rapidapi-key': apiKey,
-        },
-        params,
-      });
-      const data = res.data;
-      setNextCursor(data.next || '');
-      setLeads(
-        (data.people || []).map((person) => ({
-          firstName: person.firstName,
-          lastName: person.lastName,
-          name: person.name,
-          title: person.title,
-          linkedinUrl: person.linkedinUrl,
-          state: person.state,
-          city: person.city,
-          country: person.country,
-          organizationName: person.organizationName,
-          organizationWebsiteUrl: person.organizationWebsiteUrl,
-          organizationLinkedinUrl: person.organizationLinkedinUrl,
-          organizationTwitterUrl: person.organizationTwitterUrl,
-          organizationFacebookUrl: person.organizationFacebookUrl,
-          organizationPhone: person.organizationPhone,
-          organizationAbout: person.organizationAbout,
-        }))
-      );
-    } catch (err) {
-      console.error('API request failed:', err)
-      setError('Failed to fetch leads')
-    } finally {
-      setLoading(false)
-    }
-  };
+  setError('');
+  setLoading(true);
+  const params = { ...query };
+
+  if (action === 'continue' && userCursor) {
+    params.next = userCursor;
+  }
+
+  try {
+    const res = await axios.get(`${API_BASE}/leads`, {
+      headers: {
+        'x-rapidapi-key': apiKey,
+      },
+      params,
+    });
+
+    const data = res.data;
+    const newLeads = (data.people || []).map((person) => ({
+      firstName: person.firstName,
+      lastName: person.lastName,
+      name: person.name,
+      title: person.title,
+      linkedinUrl: person.linkedinUrl,
+      state: person.state,
+      city: person.city,
+      country: person.country,
+      organizationName: person.organizationName,
+      organizationWebsiteUrl: person.organizationWebsiteUrl,
+      organizationLinkedinUrl: person.organizationLinkedinUrl,
+      organizationTwitterUrl: person.organizationTwitterUrl,
+      organizationFacebookUrl: person.organizationFacebookUrl,
+      organizationPhone: person.organizationPhone,
+      organizationAbout: person.organizationAbout,
+    }));
+
+    const nextToken = data.next || '';
+    setNextCursor(() => nextToken);
+    setUserCursor(() => nextToken);
+    
+    // Always replace leads
+    setLeads(newLeads);
+
+  } catch (err) {
+    console.error('API request failed:', err);
+    setError('Failed to fetch leads');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const downloadCSV = () => {
     const csv = [
@@ -95,32 +106,78 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white font-sans grid grid-cols-1 md:grid-cols-[300px_1fr]">
-      <SearchSidebar
-        apiKey={apiKey}
-        setApiKey={setApiKey}
-        query={query}
-        setQuery={setQuery}
-        action={action}
-        setAction={setAction}
-        userCursor={userCursor}
-        setUserCursor={setUserCursor}
-      />
+      <div className="bg-zinc-900 p-6 space-y-6 border-r border-zinc-800">
+        <SearchSidebar
+          apiKey={apiKey}
+          setApiKey={setApiKey}
+          query={query}
+          setQuery={setQuery}
+          action={action}
+          setAction={setAction}
+          userCursor={userCursor}
+          setUserCursor={setUserCursor}
+        />
+      </div>
 
-      <main className="p-10 overflow-y-auto">
-        <h1 className="text-4xl font-extrabold mb-8">Leads Scraper and Downloader</h1>
+<main className="p-10 overflow-y-auto">
+  <h1 className="text-4xl font-extrabold mb-8">Leads Scraper and Downloader</h1>
 
-        {error && <p className="mb-4 text-red-400">{error}</p>}
+  {error && <p className="mb-4 text-red-400">{error}</p>}
 
-        <button
-          className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded mb-10 shadow flex items-center"
-          onClick={handleSearch}
-          disabled={loading || action === 'cancel'}
-        >
-          {loading ? <Spinner /> : 'Get Leads Data'}
-        </button>
+  <h2 className="text-2xl font-bold mb-2 sticky top-0 bg-zinc-950 z-10 py-2">Results</h2>
+  
+  {leads.length > 0 && (
+    <p className="text-sm text-zinc-400 mb-4">Total Leads: {leads.length}</p>
+  )}
 
-        <ResultsTable leads={leads} downloadCSV={downloadCSV} downloadExcel={downloadExcel} />
-      </main>
+  {leads.length > 0 ? (
+    <ResultsTable
+      leads={leads}
+      maxHeight="80vh"
+      stickyHeader
+      striped
+      sortable
+      expandableRows
+    />
+  ) : (
+    <motion.div
+      className="border border-zinc-700 bg-zinc-900 rounded p-6 text-center text-zinc-400 flex flex-col items-center justify-center"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <FileSearch className="w-12 h-12 mb-3 text-zinc-500 animate-pulse" />
+      <p className="text-lg font-medium">No data to display yet.</p>
+      <p className="mt-2 text-sm">
+        Please perform a new run or continue a previous run to see your leads here.
+      </p>
+    </motion.div>
+  )}
+
+  {/* Unified Action Buttons */}
+  <div className="mt-6 flex flex-wrap gap-4">
+    <button
+      onClick={handleSearch}
+      className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded shadow"
+    >
+      {loading ? <Spinner /> : 'Get Leads Data'}
+    </button>
+    <button
+      onClick={downloadCSV}
+      disabled={leads.length === 0}
+      className="bg-green-600 disabled:opacity-50 hover:bg-green-700 px-4 py-2 rounded shadow"
+    >
+      Download CSV
+    </button>
+    <button
+      onClick={downloadExcel}
+      disabled={leads.length === 0}
+      className="bg-yellow-500 disabled:opacity-50 hover:bg-yellow-600 px-4 py-2 rounded shadow"
+    >
+      Download Excel
+    </button>
+  </div>
+</main>
     </div>
-  )
+  );
 }

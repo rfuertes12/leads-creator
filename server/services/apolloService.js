@@ -1,16 +1,23 @@
+// services/apolloService.js
 import axios from 'axios';
 
 const API_URL = 'https://apollo-api-pro.p.rapidapi.com/page';
 const API_HOST = 'apollo-api-pro.p.rapidapi.com';
-const API_KEY = process.env.APOLLO_API_KEY;
 
 export const fetchLeads = async (params) => {
+  const { apiKey, ...query } = params;
+
+  if (!apiKey) {
+    throw new Error('API key is required');
+  }
+
   const res = await axios.get(API_URL, {
     headers: {
       'x-rapidapi-host': API_HOST,
-      'x-rapidapi-key': API_KEY,
+      'x-rapidapi-key': apiKey,
     },
-    params,
+    params: query,
   });
-  return res.data.people || [];
+
+  return res.data;
 };
