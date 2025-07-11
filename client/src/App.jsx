@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import axios from 'axios';
-import { saveAs } from 'file-saver';
-import * as XLSX from 'xlsx';
+import { useState } from 'react'
+import axios from 'axios'
+import { saveAs } from 'file-saver'
+import * as XLSX from 'xlsx'
+import SearchSidebar from './components/SearchSidebar.jsx'
+import ResultsTable from './components/ResultsTable.jsx'
+import Spinner from './components/Spinner.jsx'
 
 export default function App() {
   const [apiKey, setApiKey] = useState('');
@@ -18,16 +21,24 @@ export default function App() {
   const [action, setAction] = useState('new');
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('')
+
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
   const handleSearch = async () => {
-    setLoading(true);
-    const params = { ...query };
+    if (!apiKey) {
+      setError('API key is required')
+      return
+    }
+    setError('')
+    setLoading(true)
+    const params = { ...query }
     if (action === 'continue' && userCursor) {
-      params.next = userCursor;
+      params.next = userCursor
     }
 
     try {
-      const res = await axios.get('http://localhost:5000/leads', {
+      const res = await axios.get(`${API_BASE}/leads`, {
         headers: {
           'x-rapidapi-key': apiKey,
         },
@@ -55,9 +66,10 @@ export default function App() {
         }))
       );
     } catch (err) {
-      console.error('API request failed:', err);
+      console.error('API request failed:', err)
+      setError('Failed to fetch leads')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   };
 
@@ -82,116 +94,33 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white font-sans grid grid-cols-[300px_1fr]">
-      <aside className="bg-zinc-900 p-6 space-y-6 border-r border-zinc-800">
-        <div>
-          <h2 className="text-xl font-semibold mb-2">API Settings</h2>
-          <input
-            type="password"
-            placeholder="API Key"
-            className="w-full p-2 rounded bg-zinc-800 text-white"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <h2 className="text-xl font-semibold mb-2">Search Parameters</h2>
-          {['qKeywords', 'locations', 'industry', 'personTitle', 'numEmployees'].map((field, idx) => (
-            <input
-              key={idx}
-              placeholder={field.replace(/([a-z])([A-Z])/g, '$1 $2')}
-              className="w-full p-2 mb-2 rounded bg-zinc-800 text-white"
-              value={query[field]}
-              onChange={(e) => setQuery({ ...query, [field]: e.target.value })}
-            />
-          ))}
-        </div>
-      </aside>
+    <div className="min-h-screen bg-zinc-950 text-white font-sans grid grid-cols-1 md:grid-cols-[300px_1fr]">
+      <SearchSidebar
+        apiKey={apiKey}
+        setApiKey={setApiKey}
+        query={query}
+        setQuery={setQuery}
+        action={action}
+        setAction={setAction}
+        userCursor={userCursor}
+        setUserCursor={setUserCursor}
+      />
 
       <main className="p-10 overflow-y-auto">
         <h1 className="text-4xl font-extrabold mb-8">Leads Scraper and Downloader</h1>
 
-        <div className="mb-8">
-          <label className="font-medium block mb-3 text-lg">Choose Action:</label>
-          <div className="space-y-2">
-            {['new', 'continue', 'cancel'].map((opt) => (
-              <label key={opt} className="block">
-                <input
-                  type="radio"
-                  name="action"
-                  value={opt}
-                  checked={action === opt}
-                  onChange={() => setAction(opt)}
-                  className="mr-2"
-                />
-                {opt === 'new' ? 'New Run' : opt === 'continue' ? 'Continue from Next Page' : 'Cancel'}
-              </label>
-            ))}
-          </div>
-          {action === 'continue' && (
-            <input
-              placeholder="Next Page Cursor"
-              className="mt-4 w-full p-2 rounded bg-zinc-800 text-white"
-              value={userCursor}
-              onChange={(e) => setUserCursor(e.target.value)}
-            />
-          )}
-        </div>
+        {error && <p className="mb-4 text-red-400">{error}</p>}
 
         <button
-          className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded mb-10 shadow"
+          className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded mb-10 shadow flex items-center"
           onClick={handleSearch}
           disabled={loading || action === 'cancel'}
         >
-          {loading ? 'Fetching...' : 'Get Leads Data'}
+          {loading ? <Spinner /> : 'Get Leads Data'}
         </button>
 
-        {leads.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-semibold mb-4">Results</h2>
-            <div className="overflow-auto max-h-[500px] border border-zinc-700 rounded">
-              <table className="table-auto w-full border-collapse text-sm">
-                <thead className="sticky top-0 bg-zinc-900 z-10">
-                  <tr>
-                    {Object.keys(leads[0]).map((key) => (
-                      <th key={key} className="border border-zinc-700 px-3 py-2">
-                        {key}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {leads.map((lead, idx) => (
-                    <tr key={idx} className="even:bg-zinc-800 hover:bg-zinc-700">
-                      {Object.values(lead).map((val, i) => (
-                        <td key={i} className="border border-zinc-700 px-3 py-2">
-                          {val}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-6 space-x-4">
-              <button
-                onClick={downloadCSV}
-                className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded shadow"
-              >
-                Download CSV
-              </button>
-              <button
-                onClick={downloadExcel}
-                className="bg-yellow-500 hover:bg-yellow-600 px-4 py-2 rounded shadow"
-              >
-                Download Excel
-              </button>
-            </div>
-          </div>
-        )}
+        <ResultsTable leads={leads} downloadCSV={downloadCSV} downloadExcel={downloadExcel} />
       </main>
     </div>
-  );
+  )
 }
