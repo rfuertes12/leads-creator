@@ -25,7 +25,12 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+  // Base URL for the API. During development we fall back to the local
+  // Express server, but in production the client and server are typically
+  // served from the same origin so we can use a relative path.
+  const API_BASE =
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.DEV ? 'http://localhost:5000' : '');
 
 const handleSearch = async () => {
   if (!apiKey) {
