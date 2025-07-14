@@ -91,4 +91,4 @@ Ensure the frontend `.env.production` points to the deployed backend API.
 
 ## 🛡️ License
 
-MIT
+[MIT](https://github.com/rfuertes12/leads-creator/main/LICENSE.md)
